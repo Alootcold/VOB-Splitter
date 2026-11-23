@@ -1,0 +1,16 @@
+name: vobsplit_core
+description: "DVD VOB 无损分割核心库（纯 Dart）：按章节把 VOB 切成多个文件，逐字节无损。"
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+# 运行时依赖只有两个：crypto（SHA-256）与 path（标准库路径处理）。
+# 本包是**纯 Dart**包，不依赖 Flutter，方便被 Flutter GUI / CLI / 服务端复用。
+dependencies:
+  crypto: ^3.0.3
+  path: ^1.9.0
+
+dev_dependencies:
+  test: ^1.25.0

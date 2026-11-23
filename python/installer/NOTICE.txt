@@ -1,0 +1,22 @@
+VOB Splitter —— DVD VOB 无损分割工具
+====================================
+
+这个工具把 DVD 的 VOB 码流按章节切成多个文件，输出的每一个字节都来自原始码流：
+不重新编码、不重新封装。装完可以用图形界面操作，也可以用命令行。
+
+命令行用法：
+
+    vobsplit scan  "D:\VIDEO_TS"            先看看能切出几章
+    vobsplit split "D:\VIDEO_TS" -o "D:\Split"   切分并自动校验
+
+重要说明：
+
+* 安装的是「目录版」程序（vobsplit.exe + _internal 目录），
+  不是单文件自解压版 —— 单文件版每次运行都会把程序解压到临时目录再执行，
+  既不好审计，也容易成为注入目标。目录版可以逐个文件检查。
+
+* 如果要把切好的章节转成 MKV，需要另外装 ffmpeg（可选）。
+  VOB 本身已经是无损切好的。
+
+许可：MIT
+项目主页：https://gitee.com/aloot-cold/vob-splitter

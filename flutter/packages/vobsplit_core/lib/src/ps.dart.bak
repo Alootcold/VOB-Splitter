@@ -1,0 +1,370 @@
+/// MPEG-2 Program Stream（DVD VOB）底层解析。
+///
+/// DVD VOB 是 MPEG-2 PS 的一个子集：
+///  * 整条流被切成固定 2048 字节的 pack
+///  * 每个 pack 以 pack header（00 00 01 BA）开头，其后是一个 PES
+///  * 视频在 stream id 0xE0 的 PES 里，PES 负载（ES）以序列头 00 00 01 B3 开头时
+///    表示一个新的 MPEG-2 sequence
+///
+/// 几个容易踩错的常量（写解析器时反复踩过，记在这里）：
+///
+///  picture_start_code = 00 00 01 00      ← 图像头是 0x00，不是 0xB2
+///  user_data         = 00 00 01 B2
+///  sequence_header   = 00 00 01 B3
+///  extension         = 00 00 01 B5
+///  group (GOP) header= 00 00 01 B8
+///
+/// PES 内 5 字节时间戳（MPEG-2 版式，marker 落在 byte0/byte2/byte4 的最低位）：
+///  byte0 = '001x' | PTS[32..30] | marker
+///  byte1-2 = PTS[29..15] | marker
+///  byte3-4 = PTS[14..0]  | marker
+library;
+
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart' as crypto;
+import 'package:path/path.dart' as p;
+
+/// DVD VOB 的 pack 长度：整条流按它对齐，章边界也必然落在 pack 边界上。
+const int packSize = 2048;
+
+/// pack header 起始码 00 00 01 BA。
+const List<int> startCodePack = <int>[0x00, 0x00, 0x01, 0xBA];
+
+/// 序列头起始码 00 00 01 B3（ES 以它开头 = 一个新的 MPEG-2 sequence）。
+const List<int> startCodeSequence = <int>[0x00, 0x00, 0x01, 0xB3];
+
+/// 图像头起始码 00 00 01 00 —— 注意是 0x00，**不是** 0xB2（0xB2 是 user_data）。
+const List<int> startCodePicture = <int>[0x00, 0x00, 0x01, 0x00];
+
+/// 视频 PES 的 stream id。
+const int streamIdVideo = 0xE0;
+
+// PES header 各字段相对 PES 起始位置的偏移
+const int _pesFlags1Off = 6;
+const int _pesFlags2Off = 7;
+const int _pesHdrLenOff = 8;
+const int _pesDataOff = 9;
+
+/// 单次复制的块大小（4 MiB）。
+const int _copyChunk = 1 << 22;
+
+/// 解码 PES 内的 5 字节 PTS / DTS，返回秒；不是合法时间戳则返回 null。
+///
+/// [data] 从 [offset] 开始必须有至少 5 个字节。
+///
+/// marker 位落在 byte0 / byte2 / byte4 的**最低位**，三个都必须为 1，
+/// 用它剔除在码流里误命中的字节。
+double? decodeTimestamp(Uint8List data, int offset) {
+  if (offset < 0 || offset + 5 > data.length) {
+    return null;
+  }
+  final b0 = data[offset];
+  final b1 = data[offset + 1];
+  final b2 = data[offset + 2];
+  final b3 = data[offset + 3];
+  final b4 = data[offset + 4];
+
+  // 前 4 bit 必须是 PES 头部允许的 '001x' 系列
+  final prefix = b0 & 0xF0;
+  if (prefix != 0x20 &&
+      prefix != 0x30 &&
+      prefix != 0x10 &&
+      prefix != 0x11 &&
+      prefix != 0x01) {
+    return null;
+  }
+  // marker_bit 必须为 1，用它剔除误命中的字节
+  if ((b0 & 1) == 0 || (b2 & 1) == 0 || (b4 & 1) == 0) {
+    return null;
+  }
+  final high = (b0 >> 1) & 0x07;
+  final mid = (((b1 << 8) | b2) >> 1) & 0x7FFF;
+  final low = (((b3 << 8) | b4) >> 1) & 0x7FFF;
+  return ((high << 30) | (mid << 15) | low) / 90000.0;
+}
+
+/// 一个随机访问点（Random Access Point）。
+///
+/// [packIndex] 该 RAP 所在 pack 在整条码流里的序号
+/// [offset]    该 RAP 的字节偏移（= packIndex * 2048）
+/// [pts]       该 RAP 视频 PES 的显示时间戳（秒）；没有则为 null
+/// [sequenceStart] 该 PES 的 ES 是否以序列头开头
+class Rap {
+  final int packIndex;
+  final int offset;
+  final double? pts;
+  final bool sequenceStart;
+
+  const Rap({
+    required this.packIndex,
+    required this.offset,
+    this.pts,
+    required this.sequenceStart,
+  });
+
+  @override
+  String toString() =>
+      'Rap(packIndex: $packIndex, offset: $offset, pts: $pts, '
+      'sequenceStart: $sequenceStart)';
+}
+
+/// 一次索引扫描的结果：随机访问点列表 + 统计信息。
+class IndexResult {
+  final List<Rap> raps;
+  final Map<String, int> stats;
+
+  const IndexResult({required this.raps, required this.stats});
+}
+
+/// 一条 VOB 码流。
+///
+/// DVD 把一个标题切成 VTS_xx_1.VOB .. VTS_xx_5.VOB（每个上限 1 GiB），
+/// 它们在码流上是连续的，所以本类把多个文件视作一条流。
+class VobSource {
+  /// 归一化后的绝对路径（与输入顺序一致）。
+  final List<String> paths;
+
+  /// 每个文件的大小（字节）。
+  final List<int> sizes;
+
+  /// 每个文件在整条码流里的起始偏移。
+  final List<int> starts;
+
+  /// 整条码流的总字节数。
+  final int totalSize;
+
+  factory VobSource(List<String> paths) {
+    final normalized = <String>[
+      for (final path in paths) p.absolute(path),
+    ];
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(paths, 'paths', '至少需要一个 VOB 文件');
+    }
+    final sizes = <int>[];
+    final starts = <int>[];
+    var acc = 0;
+    for (final path in normalized) {
+      final file = File(path);
+      if (!file.existsSync()) {
+        throw FileSystemException('VOB 文件不存在', path);
+      }
+      final size = file.lengthSync();
+      starts.add(acc);
+      sizes.add(size);
+      acc += size;
+    }
+    return VobSource._(normalized, sizes, starts, acc);
+  }
+
+  const VobSource._(this.paths, this.sizes, this.starts, this.totalSize);
+
+  /// 把整条流的绝对偏移映射到 (文件序号, 文件内偏移)；越界返回 null。
+  (int, int)? _locate(int offset) {
+    for (var idx = 0; idx < starts.length; idx++) {
+      final start = starts[idx];
+      final size = sizes[idx];
+      if (offset >= start && offset < start + size) {
+        return (idx, offset - start);
+      }
+    }
+    return null;
+  }
+
+  /// 从整条流的绝对偏移读出 [size] 字节。
+  ///
+  /// 越过流尾时返回的字节数会少于 [size]（与 Python 版一致）。
+  Future<Uint8List> readAt(int offset, int size) async {
+    final out = BytesBuilder(copy: false);
+    var remaining = size;
+    var pos = offset;
+    RandomAccessFile? handle;
+    var handleIdx = -1;
+    try {
+      while (remaining > 0) {
+        final loc = _locate(pos);
+        if (loc == null) {
+          break;
+        }
+        final idx = loc.$1;
+        final inner = loc.$2;
+        final take = remaining < sizes[idx] - inner ? remaining : sizes[idx] - inner;
+        if (handle == null || handleIdx != idx) {
+          await handle?.close();
+          handle = File(paths[idx]).openSync();
+          handleIdx = idx;
+        }
+        // 必须用异步读：同步读会卡住 UI isolate
+        await handle.setPosition(inner);
+        out.add(await handle.read(take));
+        pos += take;
+        remaining -= take;
+      }
+    } finally {
+      await handle?.close();
+    }
+    return out.takeBytes();
+  }
+
+  /// 按顺序吐出整条码流的数据块。
+  Stream<List<int>> chunks([int chunkSize = _copyChunk]) async* {
+    for (final path in paths) {
+      final handle = File(path).openSync();
+      try {
+        while (true) {
+          // 必须是异步读：async* 里如果同步读，await for 消费时事件队列
+          // 整个过程都拿不到时间片，界面会冻住（Windows 判定「未响应」）。
+          final data = handle.readSync(chunkSize);
+          if (data.isEmpty) {
+            break;
+          }
+          yield data;
+        }
+      } finally {
+        await handle.close();
+      }
+    }
+  }
+
+  /// 整条流的 SHA-256（十六进制）。
+  Future<String> sha256() async {
+    final digest = await crypto.sha256.bind(chunks(_copyChunk)).first;
+    return digest.toString();
+  }
+}
+
+/// 在单个 pack 内找第一个视频 PES。
+///
+/// 返回 (PES 起始位置, PTS, ES 是否以序列头开头)；没有则 null。
+(int, double?, bool)? _findVideoPes(Uint8List pack) {
+  var q = -1;
+  // pack header 固定 14 字节，PES 起始码最晚出现在 byte 26 附近
+  final limit = pack.length - 3 < 27 ? pack.length - 3 : 27;
+  for (var cand = 14; cand < limit; cand++) {
+    if (pack[cand] == 0x00 && pack[cand + 1] == 0x00 && pack[cand + 2] == 0x01) {
+      q = cand;
+      break;
+    }
+  }
+  if (q < 0) {
+    return null;
+  }
+  if (pack[q + 3] != streamIdVideo) {
+    return null;
+  }
+  // MPEG-2 PES：byte6 高两位为 '10'
+  if (pack[q + _pesFlags1Off] & 0xC0 != 0x80) {
+    return null;
+  }
+  final hdrLen = pack[q + _pesHdrLenOff];
+  final es = q + _pesDataOff + hdrLen;
+  double? pts;
+  if (pack[q + _pesFlags2Off] & 0x80 != 0) {
+    pts = decodeTimestamp(pack, q + _pesDataOff);
+  }
+  final seq = es + 4 <= pack.length &&
+      pack[es] == 0x00 &&
+      pack[es + 1] == 0x00 &&
+      pack[es + 2] == 0x01 &&
+      pack[es + 3] == 0xB3;
+  return (q, pts, seq);
+}
+
+/// 扫描整条码流，建立随机访问点索引。
+///
+/// 一个 pack 被记为 RAP，当且仅当它是某个视频 PES 的起点且该 PES 带 PTS
+/// （DVD 的 MPEG-2 每个 GOP 的视频 PES 都带 PTS），并且它的 ES 以序列头开头
+/// 或者它紧跟在前一个 RAP 之后 —— 实际上 DVD 上每个带 PTS 的视频 PES 起点
+/// 都是一个可安全切入的位置。
+///
+/// 返回 (RAP 列表, 统计信息)。
+Future<IndexResult> buildIndex(
+  VobSource source, {
+  void Function(double progress)? onProgress,
+}) async {
+  final raps = <Rap>[];
+  final stats = <String, int>{
+    'packs': 0,
+    'invalid_packs': 0,
+    'video_pes': 0,
+  };
+  var packIndex = 0;
+  var carry = Uint8List(0);
+  var carryAbs = 0;
+
+  await for (final data in source.chunks(_copyChunk)) {
+    final buf = carry.isEmpty
+        ? (data is Uint8List ? data : Uint8List.fromList(data))
+        : _concatBytes(carry, data);
+    // 只处理完整的 pack，尾部不足一整块的残余丢弃（与 Python 版一致）
+    final n = (buf.length ~/ packSize) * packSize;
+    for (var i = 0; i < n ~/ packSize; i++) {
+      final off = i * packSize;
+      final pack = Uint8List.sublistView(buf, off, off + packSize);
+      stats['packs'] = stats['packs']! + 1;
+      if (!_isPackHeader(pack)) {
+        stats['invalid_packs'] = stats['invalid_packs']! + 1;
+        packIndex++;
+        continue;
+      }
+      final hit = _findVideoPes(pack);
+      if (hit == null) {
+        packIndex++;
+        continue;
+      }
+      final pts = hit.$2;
+      final seq = hit.$3;
+      stats['video_pes'] = stats['video_pes']! + 1;
+      if (pts == null && !seq) {
+        packIndex++;
+        continue;
+      }
+      raps.add(Rap(
+        packIndex: packIndex,
+        offset: carryAbs + off,
+        pts: pts,
+        sequenceStart: seq,
+      ));
+      packIndex++;
+    }
+    carry = buf.sublist(n);
+    carryAbs += n;
+    if (onProgress != null) {
+      final consumed = carryAbs + carry.length;
+      final total = source.totalSize < 1 ? 1 : source.totalSize;
+      final value = consumed / total;
+      onProgress(value > 1.0 ? 1.0 : value);
+    }
+  }
+  stats['raps'] = raps.length;
+  return IndexResult(raps: raps, stats: stats);
+}
+
+/// 读出图像头里的 picture_coding_type（1=I, 2=P, 3=B）。
+int? describePictureCodingType(Uint8List pack, int picAt) {
+  if (picAt + 6 > pack.length) {
+    return null;
+  }
+  final word = (pack[picAt + 4] << 8) | pack[picAt + 5];
+  return (word >> 3) & 0x07;
+}
+
+bool _isPackHeader(Uint8List pack) {
+  if (pack.length < 4) {
+    return false;
+  }
+  for (var i = 0; i < 4; i++) {
+    if (pack[i] != startCodePack[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Uint8List _concatBytes(Uint8List a, List<int> b) {
+  final out = Uint8List(a.length + b.length);
+  out.setRange(0, a.length, a);
+  out.setRange(a.length, a.length + b.length, b);
+  return out;
+}

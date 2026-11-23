@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vobsplit"
+version = "1.0.0"
+description = "DVD VOB 无损分割工具：按章节切分 VOB，逐字节无损"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "VOB Splitter contributors" }]
+keywords = ["dvd", "vob", "mpeg", "ps", "split", "lossless", "chapters"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video :: Conversion",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/your-org/vob-splitter"
+
+[project.scripts]
+vobsplit = "vobsplit.cli:main"
+vobsplit-gui = "vobsplit.gui:main"
+
+[tool.setuptools]
+packages = ["vobsplit"]
+
+[tool.setuptools.package-data]
+vobsplit = ["py.typed"]

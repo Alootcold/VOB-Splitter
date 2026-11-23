@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+# 应用建议提交 pubspec.lock（锁住依赖版本），库不提交
+flutter/packages/vobsplit_core/pubspec.lock
+*.iml
+.idea/
+.vscode/
+
+# 工具产物
+_validation/
+*.vob
+*.mkv
+vobsplit-manifest.json
+
+# PyInstaller 构建产物（不提交，二进制进 git 是坏习惯）
+python/dist/
+python/build/
+release/
+*.exe
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# NSIS Duilib skin plugin build output
+flutter/app/installer/plugin/build/
+
+# 端到端测试生成的临时 NSIS 脚本
+flutter/app/installer/_t.nsi

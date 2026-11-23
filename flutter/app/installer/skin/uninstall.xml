@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  VOB Splitter 卸载程序皮肤（Duilib XML）
+
+  与安装界面同一套视觉：同样的标题条、同样的底部栏、同一套配色。
+
+  控件命名约定（NSIS 脚本按名字找控件）：
+    btnMin           标题条最小化
+    btnClose         标题条关闭
+    lblUninstallPath 安装路径
+    btnUninstall     开始卸载
+    btnCancel        取消
+    progressBar      卸载进度
+    lblStatus        卸载状态文字
+    btnFinish        完成
+-->
+<Window size="640,420" sizebox="0,0,0,0" caption="0,0,0,48">
+  <Font id="0" name="Microsoft YaHei UI" size="12" default="true" />
+  <Font id="1" name="Microsoft YaHei UI" size="13" bold="true" />
+  <Font id="2" name="Microsoft YaHei UI" size="22" bold="true" />
+  <Font id="3" name="Microsoft YaHei UI" size="13" />
+  <Font id="4" name="Microsoft YaHei UI" size="11" />
+
+  <VerticalLayout bkcolor="#FF141418">
+
+    <!-- ================= 标题条 ================= -->
+    <HorizontalLayout height="48">
+      <Control width="24" />
+      <Control width="24" height="48" bkimage="file='assets\appicon_24.png' dest='0,12,24,36'" />
+      <Control width="12" />
+      <Label text="VOB Splitter" font="1" textcolor="#FFE9E9EE" width="110" height="48" valign="center" />
+      <Control width="6" />
+      <Label name="lblVersion" text="1.0.0" font="4" textcolor="#FF9A9AA6" width="48" height="48" valign="center" />
+      <Control />
+      <Button name="btnMin" width="44" height="48"
+              normalimage="file='assets\min.png' dest='16,18,28,30'"
+              hotimage="file='assets\min_hot.png' dest='16,18,28,30'" />
+      <Button name="btnClose" width="44" height="48"
+              normalimage="file='assets\close.png' dest='16,18,28,30'"
+              hotimage="file='assets\close_hot.png' dest='16,18,28,30'" />
+    </HorizontalLayout>
+    <Control height="1" bkcolor="#FF2A2E37" />
+
+    <TabLayout name="wizardTab">
+
+      <!-- ================= 第 1 页：确认卸载 ================= -->
+      <VerticalLayout>
+        <Control height="28" />
+        <HorizontalLayout height="64" padding="28,0,28,0">
+          <Control width="48" height="64" bkimage="file='assets\appicon_48.png' dest='0,8,48,56'" />
+          <Control width="18" />
+          <VerticalLayout width="460">
+            <Label text="卸载 VOB Splitter" font="2" textcolor="#FFE9E9EE" height="32" valign="center" />
+            <Label name="lblUninstallPath" text="" font="3" textcolor="#FF9A9AA6" height="24" valign="center" />
+          </VerticalLayout>
+        </HorizontalLayout>
+
+        <Control height="24" />
+        <Control height="1" bkcolor="#FF2A2E37" padding="28,0,28,0" />
+        <Control height="24" />
+
+        <Label text="将要移除以下内容：" font="3" textcolor="#FFE9E9EE" height="22" padding="28,0,28,0" />
+        <Label text="· 安装目录 —— 程序文件与运行库" font="3" textcolor="#FF9A9AA6" height="20" padding="40,0,28,0" />
+        <Label text="· 开始菜单与桌面快捷方式" font="3" textcolor="#FF9A9AA6" height="20" padding="40,0,28,0" />
+        <Label text="· 注册表项 Software\VOB Splitter" font="3" textcolor="#FF9A9AA6" height="20" padding="40,0,28,0" />
+        <Control height="18" />
+        <Label text="用户数据（配置与日志）不会被删除。" font="3" textcolor="#FF9A9AA6" height="22" padding="28,0,28,0" />
+
+        <Control />
+
+        <!-- ================= 底部栏 ================= -->
+        <VerticalLayout height="72" bkcolor="#FF17171C">
+          <Control height="1" bkcolor="#FF2A2E37" />
+          <Control height="18" />
+          <HorizontalLayout height="36" padding="28,0,28,0">
+            <Control />
+            <Button name="btnCancel" text="取消" width="92" height="36" font="3"
+                    bkcolor="#FF1C1C21" bordercolor="#FF2A2E37" borderround="6,6"
+                    textcolor="#FFE9E9EE" hotbkcolor="#FF26262C" />
+            <Control width="12" />
+            <Button name="btnUninstall" text="开始卸载" width="124" height="36" font="1"
+                    bkcolor="#FF45C7DE" borderround="6,6"
+                    textcolor="#FF0F1013" hotbkcolor="#FF6BD4E6" />
+          </HorizontalLayout>
+          <Control height="17" />
+        </VerticalLayout>
+      </VerticalLayout>
+
+      <!-- ================= 第 2 页：正在卸载 ================= -->
+      <VerticalLayout>
+        <Control height="72" />
+        <HorizontalLayout height="52" padding="28,0,28,0">
+          <Control width="44" height="52" bkimage="file='assets\appicon_40.png' dest='2,6,42,46'" />
+          <Control width="18" />
+          <VerticalLayout width="460">
+            <Label text="正在卸载…" font="1" textcolor="#FFE9E9EE" height="26" valign="center" />
+            <Label name="lblStatus" text="" font="4" textcolor="#FF9A9AA6" height="22" valign="center" />
+          </VerticalLayout>
+        </HorizontalLayout>
+
+        <Control height="36" />
+        <Progress name="progressBar" height="6" min="0" max="100" value="0"
+                  bkcolor="#FF1C1C21" borderround="3,3" padding="28,0,28,0"
+                  foreimage="file='assets\progress_fg.png'" />
+
+        <Control />
+
+        <VerticalLayout height="72" bkcolor="#FF17171C">
+          <Control height="1" bkcolor="#FF2A2E37" />
+          <Control height="18" />
+          <HorizontalLayout height="36" padding="28,0,28,0">
+            <Control />
+            <Button name="btnCancel" text="取消" width="92" height="36" font="3"
+                    bkcolor="#FF1C1C21" bordercolor="#FF2A2E37" borderround="6,6"
+                    textcolor="#FFE9E9EE" hotbkcolor="#FF26262C" enabled="false" />
+          </HorizontalLayout>
+          <Control height="17" />
+        </VerticalLayout>
+      </VerticalLayout>
+
+      <!-- ================= 第 3 页：卸载完成 ================= -->
+      <VerticalLayout>
+        <Control height="72" />
+        <HorizontalLayout height="56" padding="28,0,28,0">
+          <Control width="56" height="56" bkimage="file='assets\done.png' dest='0,0,56,56'" />
+          <Control width="18" />
+          <VerticalLayout width="460">
+            <Label text="卸载完成" font="2" textcolor="#FFE9E9EE" height="32" valign="center" />
+            <Label text="VOB Splitter 已从本机移除" font="3" textcolor="#FF9A9AA6" height="24" valign="center" />
+          </VerticalLayout>
+        </HorizontalLayout>
+
+        <Control />
+
+        <VerticalLayout height="72" bkcolor="#FF17171C">
+          <Control height="1" bkcolor="#FF2A2E37" />
+          <Control height="18" />
+          <HorizontalLayout height="36" padding="28,0,28,0">
+            <Control />
+            <Button name="btnFinish" text="完成" width="112" height="36" font="1"
+                    bkcolor="#FF45C7DE" borderround="6,6"
+                    textcolor="#FF0F1013" hotbkcolor="#FF6BD4E6" />
+          </HorizontalLayout>
+          <Control height="17" />
+        </VerticalLayout>
+      </VerticalLayout>
+
+    </TabLayout>
+  </VerticalLayout>
+</Window>

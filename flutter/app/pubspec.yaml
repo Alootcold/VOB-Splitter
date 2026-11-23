@@ -1,0 +1,26 @@
+name: vobsplit_gui
+description: "VOB Splitter 桌面端 —— DVD VOB 按章节无损分割的图形界面。"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.4.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 纯 Dart 核心库：MPEG-2 PS 解析、章节检测、字节级切分
+  vobsplit_core:
+    path: ../packages/vobsplit_core
+
+  # 原生目录选择器（Windows / macOS / Linux）
+  file_selector: ^1.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

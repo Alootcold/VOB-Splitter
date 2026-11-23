@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  VOB Splitter 安装程序皮肤（Duilib XML）
+
+  布局和配色都在这里描述，位图只有少量自绘素材（复选框、最小化/关闭、
+  进度条前景、完成徽章）。
+
+  配色与应用本体一致：深色底 + 唯一强调色（青）。
+  圆角 4/6/10 与应用的间距、圆角规范对齐。
+
+  Duilib 的两条布局规则（写之前要知道，否则会排歪）：
+    1) 横向布局里的子控件默认**顶对齐**，不是垂直居中。
+       想让图片垂直居中，就给控件整行高度，再用 dest 把图画到中间。
+    2) dest 是「左,上,右,下」的矩形，右/下是相对控件左上角的绝对位置。
+       写成 dest='15,15,14,14' 这种右边界小于左边界的值 = 空矩形 = 什么都不画。
+
+  控件命名约定（NSIS 脚本按名字找控件）：
+    btnMin         标题条最小化
+    btnClose       标题条关闭
+    editDir        安装路径输入框
+    btnBrowse      浏览目录
+    chkShortcut    创建桌面快捷方式
+    btnInstall     开始安装
+    btnCancel      取消
+    progressBar    安装进度
+    lblStatus      安装状态文字
+    lblInstallPath 安装路径回显
+    chkRun         安装完成后启动
+    btnFinish      完成
+-->
+<Window size="640,420" sizebox="0,0,0,0" caption="0,0,0,48">
+  <Font id="0" name="Microsoft YaHei UI" size="12" default="true" />
+  <Font id="1" name="Microsoft YaHei UI" size="13" bold="true" />
+  <Font id="2" name="Microsoft YaHei UI" size="22" bold="true" />
+  <Font id="3" name="Microsoft YaHei UI" size="13" />
+  <Font id="4" name="Microsoft YaHei UI" size="11" />
+
+  <VerticalLayout bkcolor="#FF141418">
+
+    <!-- ================= 标题条 ================= -->
+    <HorizontalLayout height="48">
+      <Control width="24" />
+      <Control width="24" height="48" bkimage="file='assets\appicon_24.png' dest='0,12,24,36'" />
+      <Control width="12" />
+      <Label text="VOB Splitter" font="1" textcolor="#FFE9E9EE" width="110" height="48" valign="center" />
+      <Control width="6" />
+      <Label name="lblVersion" text="1.0.0" font="4" textcolor="#FF9A9AA6" width="48" height="48" valign="center" />
+      <Control />
+      <Button name="btnMin" width="44" height="48"
+              normalimage="file='assets\min.png' dest='16,18,28,30'"
+              hotimage="file='assets\min_hot.png' dest='16,18,28,30'" />
+      <Button name="btnClose" width="44" height="48"
+              normalimage="file='assets\close.png' dest='16,18,28,30'"
+              hotimage="file='assets\close_hot.png' dest='16,18,28,30'" />
+    </HorizontalLayout>
+    <Control height="1" bkcolor="#FF2A2E37" />
+
+    <TabLayout name="wizardTab">
+
+      <!-- ================= 第 1 页：安装配置 ================= -->
+      <VerticalLayout>
+        <Control height="40" />
+        <HorizontalLayout height="76" padding="28,0,28,0">
+          <Control width="48" height="76" bkimage="file='assets\appicon_48.png' dest='0,14,48,62'" />
+          <Control width="18" />
+          <VerticalLayout width="460">
+            <Label text="VOB Splitter" font="2" textcolor="#FFE9E9EE" height="30" valign="center" />
+            <Label text="DVD VOB 无损分割工具" font="3" textcolor="#FF9A9AA6" height="22" valign="center" />
+            <Label text="Windows 10 / 11 · 64 位" font="4" textcolor="#FF9A9AA6" height="20" valign="center" />
+          </VerticalLayout>
+        </HorizontalLayout>
+
+        <Control height="26" />
+        <Control height="1" bkcolor="#FF2A2E37" padding="28,0,28,0" />
+        <Control height="26" />
+
+        <!-- 安装位置 -->
+        <HorizontalLayout height="36" padding="28,0,28,0">
+          <Label text="安装位置" font="3" textcolor="#FF9A9AA6" width="68" height="36" valign="center" />
+          <Container width="408" height="36" bkcolor="#FF1C1C21" bordercolor="#FF2A2E37"
+                     borderround="4,4" inset="12,8,12,8">
+            <Label name="editDir" text="" height="20" font="3" textcolor="#FFE9E9EE" align="left" />
+          </Container>
+          <Control width="12" />
+          <Button name="btnBrowse" text="浏览…" width="84" height="36" font="3"
+                  bkcolor="#FF1C1C21" bordercolor="#FF2A2E37" borderround="6,6"
+                  textcolor="#FFE9E9EE" hotbkcolor="#FF26262C" />
+        </HorizontalLayout>
+        <Control height="18" />
+
+        <!-- 桌面快捷方式 -->
+        <HorizontalLayout height="26" padding="28,0,28,0">
+          <CheckBox name="chkShortcut" text="创建桌面快捷方式" height="26" font="3"
+                    textcolor="#FFE9E9EE" align="left" textpadding="24,4,0,0"
+                    normalimage="file='assets\check_off.png' dest='0,7,16,23'"
+                    hotimage="file='assets\check_off_hot.png' dest='0,7,16,23'"
+                    selectedimage="file='assets\check_on.png' dest='0,7,16,23'" />
+        </HorizontalLayout>
+
+        <Control />
+
+        <!-- ================= 底部栏 ================= -->
+        <VerticalLayout height="72" bkcolor="#FF17171C">
+          <Control height="1" bkcolor="#FF2A2E37" />
+          <Control height="18" />
+          <HorizontalLayout height="36" padding="28,0,28,0">
+            <Control />
+            <Button name="btnCancel" text="取消" width="92" height="36" font="3"
+                    bkcolor="#FF1C1C21" bordercolor="#FF2A2E37" borderround="6,6"
+                    textcolor="#FFE9E9EE" hotbkcolor="#FF26262C" />
+            <Control width="12" />
+            <Button name="btnInstall" text="安装" width="112" height="36" font="1"
+                    bkcolor="#FF45C7DE" borderround="6,6"
+                    textcolor="#FF0F1013" hotbkcolor="#FF6BD4E6" />
+          </HorizontalLayout>
+          <Control height="17" />
+        </VerticalLayout>
+      </VerticalLayout>
+
+      <!-- ================= 第 2 页：正在安装 ================= -->
+      <VerticalLayout>
+        <Control height="72" />
+        <HorizontalLayout height="52" padding="28,0,28,0">
+          <Control width="44" height="52" bkimage="file='assets\appicon_40.png' dest='2,6,42,46'" />
+          <Control width="18" />
+          <VerticalLayout width="460">
+            <Label text="正在安装…" font="1" textcolor="#FFE9E9EE" height="26" valign="center" />
+            <Label name="lblInstallPath" text="" font="4" textcolor="#FF9A9AA6" height="22" valign="center" />
+          </VerticalLayout>
+        </HorizontalLayout>
+
+        <Control height="36" />
+        <Progress name="progressBar" height="6" min="0" max="100" value="0"
+                  bkcolor="#FF1C1C21" borderround="3,3" padding="28,0,28,0"
+                  foreimage="file='assets\progress_fg.png'" />
+        <Control height="18" />
+        <Label name="lblStatus" text="" font="3" textcolor="#FF9A9AA6" height="24" padding="28,0,28,0" />
+
+        <Control />
+
+        <VerticalLayout height="72" bkcolor="#FF17171C">
+          <Control height="1" bkcolor="#FF2A2E37" />
+          <Control height="18" />
+          <HorizontalLayout height="36" padding="28,0,28,0">
+            <Control />
+            <Button name="btnCancel" text="取消" width="92" height="36" font="3"
+                    bkcolor="#FF1C1C21" bordercolor="#FF2A2E37" borderround="6,6"
+                    textcolor="#FFE9E9EE" hotbkcolor="#FF26262C" enabled="false" />
+          </HorizontalLayout>
+          <Control height="17" />
+        </VerticalLayout>
+      </VerticalLayout>
+
+      <!-- ================= 第 3 页：安装完成 ================= -->
+      <VerticalLayout>
+        <Control height="72" />
+        <HorizontalLayout height="56" padding="28,0,28,0">
+          <Control width="56" height="56" bkimage="file='assets\done.png' dest='0,0,56,56'" />
+          <Control width="18" />
+          <VerticalLayout width="460">
+            <Label text="安装完成" font="2" textcolor="#FFE9E9EE" height="32" valign="center" />
+            <Label name="lblDonePath" text="" font="3" textcolor="#FF9A9AA6" height="24" valign="center" />
+          </VerticalLayout>
+        </HorizontalLayout>
+
+        <Control height="28" />
+        <HorizontalLayout height="26" padding="28,0,28,0">
+          <CheckBox name="chkRun" text="启动 VOB Splitter" height="26" font="3"
+                    textcolor="#FFE9E9EE" align="left" textpadding="24,4,0,0" selected="true"
+                    normalimage="file='assets\check_off.png' dest='0,7,16,23'"
+                    hotimage="file='assets\check_off_hot.png' dest='0,7,16,23'"
+                    selectedimage="file='assets\check_on.png' dest='0,7,16,23'" />
+        </HorizontalLayout>
+
+        <Control />
+
+        <VerticalLayout height="72" bkcolor="#FF17171C">
+          <Control height="1" bkcolor="#FF2A2E37" />
+          <Control height="18" />
+          <HorizontalLayout height="36" padding="28,0,28,0">
+            <Control />
+            <Button name="btnFinish" text="完成" width="112" height="36" font="1"
+                    bkcolor="#FF45C7DE" borderround="6,6"
+                    textcolor="#FF0F1013" hotbkcolor="#FF6BD4E6" />
+          </HorizontalLayout>
+          <Control height="17" />
+        </VerticalLayout>
+      </VerticalLayout>
+
+    </TabLayout>
+  </VerticalLayout>
+</Window>

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=VOB Splitter
+Comment=DVD VOB 无损分割工具
+Exec=vobsplit
+Icon=vobsplit
+Type=Application
+Categories=AudioVideo;Video;GTK;
+Terminal=false
+StartupNotify=true

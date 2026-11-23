@@ -1,0 +1,9 @@
+# 文本文件统一在仓库里存 LF；检出时按平台换行
+* text=auto
+
+# 脚本和 .desktop 在任何平台都必须是 LF —— 这两种格式对 CR 零容忍：
+#   * bash：set -euo pipefail\r 会被当成一个叫 "pipefail\r" 的选项，
+#     直接报「无效的选项名」；rm -rf "$dir"\r 还会造出带 CR 的目录名。
+#   * .desktop：Exec= 行尾带 CR 会让命令找不到（菜单项点了没反应）。
+*.sh text eol=lf
+*.desktop text eol=lf
